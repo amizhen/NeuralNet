@@ -35,8 +35,9 @@ class NN:
     def train(self, train_set, step, iters):
         pass
 
-    def cost(self, result, actual):
-        pass
+    def cross_entropy(self, result, actual):
+        # Y is number_examples X 1
+        return -1/result.shape[0]*np.sum(result*np.log(actual) + (1-result)*np.log(1-actual))
 
     def sigmoid(self):
         pass
