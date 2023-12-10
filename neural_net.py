@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 
 
@@ -16,17 +18,6 @@ class NN:
         self.cache = []
         pass
 
-    def forward_prop(self, given, cache=False): # TODO Change to not use so much memory
-        c = given ## ???
-        for i in range(len(self.layers)):
-            a = np.copy(c)
-            c = c @ self.layers[i] + self.consts[i]
-            z = np.copy(c)
-            c = self.activ_funcs[i](c)
-            if cache:
-                self.cache.append((z, a))
-        return c
-
     def init_params(self, shape, activ_funcs):
         # shape is of format [<num params>, <l1_size>, <l2_size>, ... <output_size>]
         table = {'lin': self.lin, 'relu': self.relu, 'sigmoid': self.sigmoid, 'tanh': self.tanh}
@@ -38,26 +29,35 @@ class NN:
     def load_params(self, fd):
         pass
 
+    def forward_prop(self, given, cache=False): # TODO Change to not use so much memory
+        c = given ## ???
+        for i in range(len(self.layers)):
+            a = np.copy(c)
+            c = c @ self.layers[i] + self.consts[i]
+            z = np.copy(c)
+            c = self.activ_funcs[i](c)
+            if cache:
+                self.cache.append((z, a))
+        return c
 
-    def train(self, train_data, actual, step=0.00001, passes=100000):
+    def train(self, train_data, actual, step=0.001, passes=100000):
         for i in range(passes):
             self.train_pass(train_data, actual, step=step)
 
-    def train_pass(self, train_data, actual, step=0.00001):
-        result = self.forward_prop(train_data)
+    def train_pass(self, train_data, actual, step):
+        result = self.forward_prop(train_data, cache=True)
         dA = - (np.divide(actual, result) - np.divide(1 - actual, 1 - result))
 
         self.cache = []
         for i in range(len(self.layers), 0, -1):
             dW, db, dA = self.one_deriv(i, dA)
-            self.layers[i] *= [1-dW*step]
-            self.consts[i] *= [1-db*step]
-
+            self.layers[i] *= (1-dW*step)
+            self.consts[i] *= (1-db*step)
 
     def one_deriv(self, i, dA):
         table = {self.relu: self.relu_grad, self.sigmoid: self.sigmoid_grad} ## ADD TANH
-        g = table[self.activ_funcs[i]]
-        dZ = dA * g(self.cache[i][0])
+        g_prime = table[self.activ_funcs[i]]
+        dZ = dA * g_prime(self.cache[i][0])
         # d_const =
         m = self.cache[-1][1].shape[0]
         dW = 1/m * self.cache[i-1][1] @ dZ.T
@@ -74,16 +74,16 @@ class NN:
         return -1/actual.shape[0]*np.sum(actual * np.log(result) + (1 - actual) * np.log(1 - result))
 
     def sigmoid(self, x):
-        pass
+        return 1.0 / (1.0 + np.exp(-x))
 
     def sigmoid_grad(self, x):
-        pass
+        return self.sigmoid(x)*(1-self.sigmoid(x))
 
     def relu(self, x):
-        pass
+        return np.maximum(0, x)
 
     def relu_grad(self, x):
-        pass
+        return np.vectorize(lambda x: 1 if x>0 else 0)(x)
 
     def tanh(self):  # ALREADY DEFINED
         pass
@@ -93,13 +93,19 @@ class NN:
 
 
 if __name__ == '__main__':
-    # t = np.array([[1,2,3,4]])
-    # n = NN()
-    # n.init_params([4, 10, 10, 3, 1], ['lin', 'lin', 'lin', 'lin'])
-    # print(n.forward_prop(t))
-    # print(np.array([[1,2],[3,4], [5,6], [7,8]]).shape)
-    # n.layers = [np.array([[1,2],[3,4], [5,6], [7,8]]), np.array([[1,2],[3,4]])]
-    # n.consts = [np.array([100, 1000]), np.array([100, 1000])]
-    # n.activ_funcs = [n.lin, n.lin]
-    # print(n.forward_prop(t))
+    t = np.array([[1,2]])
+    n = NN()
+    n.init_params([2, 10, 10, 3, 1], ['lin', 'lin', 'lin', 'lin'])
+
+    t_data = []
+    actual = []
+    for i in range(1000):
+        a = int(random.random()*1000)
+        b = int(random.random()*1000)
+        t_data.append([a, b])
+        actual.append([a+b])
+    t_data = np.array(t_data)
+    actual = np.array(actual)
+
+    n.train(t_data, actual, 0.0001)
     pass
