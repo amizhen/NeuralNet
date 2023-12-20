@@ -14,25 +14,39 @@ class NN:
     def __init__(self):
         self.layers = []  # [weight0, weight1 ...]
         self.consts = []  # [consts0, consts1 ...]
-        self.activ_funcs = []  # [string, ...]
-        self.cache = []  # [(z_i, a_i), ...]
-        self.activ_table = {'lin': self.lin, 'relu': self.relu, 'sigmoid': self.sigmoid, 'tanh': self.tanh, 'mse': self.mse}
-        self.grad_table = {'lin': self.lin_grad, 'relu': self.relu_grad, 'sigmoid': self.sigmoid_grad, 'tanh': self.tanh_grad, 'mse': self.mse_grad}
+        self.activ_funcs = []  # [func, ...]
+        self.grad_table = {self.lin: self.lin_grad, self.relu: self.relu_grad, self.sigmoid: self.sigmoid_grad,
+                           self.tanh: self.tanh_grad, self.mse: self.mse_grad}
         pass
 
-    def init_params(self, shape, activ_funcs):
+    def init_params(self, shape, activ_funcs): # TODO add default init hyperparams
         # shape is of format [<num params>, <l1_size>, <l2_size>, ... <output_size>]
         # activ_funcs is of format ['<activ0>', '<activ1>' ... '<loss>']
-        self.activ_funcs = activ_funcs
+        activ_table = {'lin': self.lin, 'relu': self.relu, 'sigmoid': self.sigmoid, 'tanh': self.tanh, 'mse': self}
         for i in range(len(shape)-1):
             self.layers.append(np.random.randn(shape[i], shape[i+1])*0.01)
             self.consts.append(np.zeros((1, shape[i+1])))
+            self.activ_funcs.append(activ_table[activ_funcs[i]])
 
     def load_params(self, fd):
+        '''
+        Loads weights from file (uses whatever default numpy read/writing behavior
+        '''
         pass
 
-    def forward_prop(self, given, cache=False): # TODO Change to not use so much memory
-        pass
+    def forward_prop(self, given, do_cache=False): # TODO Change to not use so much memory
+        cache = []  # [(z_i, a_i), ...]
+        a = given
+        for layer, weight in enumerate(self.layers):
+            const = self.consts[layer]
+            activ = self.activ_funcs[layer]
+
+            z = a @ weight + const
+            if do_cache:
+                cache.append((np.copy(z), np.copy(a)))
+            a = activ(z)
+
+        return a, cache
 
     def train(self, train_data, actual, step=0.001, passes=100000):
         pass
