@@ -20,9 +20,10 @@ class NN:
         pass
 
     def init_params(self, shape, activ_funcs): # TODO add default init hyperparams
-        # shape is of format [<num params>, <l1_size>, <l2_size>, ... <output_size>]
-        # activ_funcs is of format ['<activ0>', '<activ1>' ... '<loss>']
+        # shape is of format [<num params>, <l1_size>, <l2_size>, ... <output_size>] Of size 1 + num layers + 1
+        # activ_funcs is of format ['<activ0>', '<activ1>' ...] Of size num layers
         activ_table = {'lin': self.lin, 'relu': self.relu, 'sigmoid': self.sigmoid, 'tanh': self.tanh, 'mse': self}
+
         for i in range(len(shape)-1):
             self.layers.append(np.random.randn(shape[i], shape[i+1])*0.01)
             self.consts.append(np.zeros((1, shape[i+1])))
@@ -54,8 +55,16 @@ class NN:
     def train_pass(self, train_data, actual, step):
         pass
 
-    def one_deriv(self, i, dA):
-        pass
+    def one_deriv(self, i, da_prev, cache_i):
+        '''
+        Computes the gradients of the weights and consts for layer i
+        '''
+        g_prime = self.grad_table[self.activ_funcs[i]]
+        dz = da_prev @ g_prime(cache_i[0])
+        da = dz @ self.layers[i].T
+        dw = cache_i[1].T @ dz
+        db = np.sum(dz, axis=0)
+        return dw, db, da
 
     def compute_cost(self, func, pred, actual): # TODO split cost/grad into 2 funcs
         cost = self.activ_funcs[func](pred, actual)
