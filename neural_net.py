@@ -30,7 +30,7 @@ class NN:
         pass
 
     def forward_prop(self, given, cache=False): # TODO Change to not use so much memory
-        c = given ## ???
+        c = np.copy(given)
         for i in range(len(self.layers)):
             a = np.copy(c)
             c = c @ self.layers[i] + self.consts[i]
@@ -85,11 +85,17 @@ class NN:
     def relu_grad(self, x):
         return np.vectorize(lambda x: 1 if x>0 else 0)(x)
 
-    def tanh(self):  # ALREADY DEFINED
-        pass
+    def tanh(self, x):  # ALREADY DEFINED
+        return np.tanh(x)
+
+    def tanh_grad(self, x):
+        return 1 - np.tanh(x)**2
 
     def lin(self, x):
         return x
+
+    def lin_grad(self, x):
+        return 1
 
 
 if __name__ == '__main__':
