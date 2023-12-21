@@ -17,13 +17,17 @@ class NN:
         self.activ_funcs = []  # [func, ...]
         self.grad_table = {self.lin: self.lin_grad, self.relu: self.relu_grad, self.sigmoid: self.sigmoid_grad,
                            self.tanh: self.tanh_grad, self.mse: self.mse_grad}
+        self.cost_func = self.mse
+
         pass
 
-    def init_params(self, shape, activ_funcs): # TODO add default init hyperparams
+    def init_params(self, shape, activ_funcs, cost): # TODO add default init hyperparams
         # shape is of format [<num params>, <l1_size>, <l2_size>, ... <output_size>] Of size 1 + num layers + 1
         # activ_funcs is of format ['<activ0>', '<activ1>' ...] Of size num layers
+        # cost is 'mse' etc
         activ_table = {'lin': self.lin, 'relu': self.relu, 'sigmoid': self.sigmoid, 'tanh': self.tanh, 'mse': self}
-
+        self.cost = activ_table[cost]
+        
         for i in range(len(shape)-1):
             self.layers.append(np.random.randn(shape[i], shape[i+1])*0.01)
             self.consts.append(np.zeros((1, shape[i+1])))
@@ -35,7 +39,7 @@ class NN:
         '''
         pass
 
-    def forward_prop(self, given, do_cache=False): # TODO Change to not use so much memory
+    def forward_prop(self, given): # TODO Change to not use so much memory
         cache = []  # [(z_i, a_i), ...]
         a = given
         for layer, weight in enumerate(self.layers):
@@ -43,17 +47,26 @@ class NN:
             activ = self.activ_funcs[layer]
 
             z = a @ weight + const
-            if do_cache:
-                cache.append((np.copy(z), np.copy(a)))
+            cache.append((np.copy(z), np.copy(a)))
             a = activ(z)
 
         return a, cache
 
-    def train(self, train_data, actual, step=0.001, passes=100000):
-        pass
+    def train(self, train_data, actual, alpha=0.001, passes=100000):
+        for _ in range(passes):
+            self.train_pass(train_data, actual,  alpha)
 
-    def train_pass(self, train_data, actual, step):
-        pass
+    def train_pass(self, train_data, actual, cost_func, alpha):
+        '''
+        Computes one training pass
+        '''
+        pred, cache = self.forward_prop(train_data)
+
+        da = cost_func(pred, actual)
+        for layer in range(len(self.layers)-1, 0, -1):
+            dw, db, da = self.one_deriv(layer, da, cache[layer])
+            self.layers[layer] -= alpha * dw
+            self.consts[layer] -= alpha * db
 
     def one_deriv(self, i, da_prev, cache_i):
         '''
@@ -65,11 +78,6 @@ class NN:
         dw = cache_i[1].T @ dz
         db = np.sum(dz, axis=0)
         return dw, db, da
-
-    def compute_cost(self, func, pred, actual): # TODO split cost/grad into 2 funcs
-        cost = self.activ_funcs[func](pred, actual)
-        grad = self.grad_table[func](pred, actual)
-        return cost, grad
 
 
     def mse(self, pred, actual):
