@@ -30,7 +30,7 @@ class NN:
         self.cost = activ_table[cost]
 
         for i in range(len(shape) - 1):
-            self.layers.append(np.random.randn(shape[i], shape[i + 1]) * 0.1)
+            self.layers.append(np.random.randn(shape[i], shape[i + 1]))
             self.consts.append(np.zeros((1, shape[i + 1])))
             self.activ_funcs.append(activ_table[activ_funcs[i]])
 
@@ -57,7 +57,7 @@ class NN:
 
         return a, cache
 
-    def train(self, train_data, actual, alpha=0.01, passes=1000):
+    def train(self, train_data, actual, alpha=0.01, passes=100000):
         for i in range(passes):
             self.train_pass(train_data, actual, alpha=alpha)
 
@@ -72,11 +72,11 @@ class NN:
         pred, cache = self.forward_prop(train_data)
         # print(self.mse(pred, actual))
         cost_grad = self.grad_table[self.cost]
-        da = cost_grad(pred, actual)
+        da = pred-actual
         # print('da: '+ str(da))
         # print('Cost: ' + str(self.cost(pred, actual)))
         for layer in range(len(self.layers) - 1, -1, -1):
-            dw, db, da = self.one_deriv(layer, da, cache[layer])
+            dw, db, da = self.one_deriv(layer, len(self.layers) - 1, da, cache[layer])
             # print(layer)
             # print('dw: ' + str(dw))
             # print('db: ' + str(db))
@@ -84,12 +84,21 @@ class NN:
             self.layers[layer] -= alpha * dw
             self.consts[layer] -= alpha * db
 
-    def one_deriv(self, i, da_prev, cache_i):
+    # dz2 = a2 - y
+    # dw2 = np.dot(dz2, a1.T) / 4
+    # db2 = np.sum(dz2, axis=1, keepdims=True) / 4
+    # dz1 = np.dot(w2.T, dz2) * a1 * (1.0 - a1)
+    # dw1 = np.dot(dz1, x.T) / 4
+    # db1 = np.sum(dz1, axis=1, keepdims=True) / 4
+    def one_deriv(self, i, layers, da_prev, cache_i):
         '''
         Computes the gradients of the weights and consts for layer i
         '''
         g_prime = self.grad_table[self.activ_funcs[i]]
-        dz = da_prev * g_prime(cache_i[0])
+        if i != layers:
+            dz = da_prev * g_prime(cache_i[0])
+        else:
+            dz = da_prev
         da = dz @ self.layers[i].T
         dw = cache_i[1].T @ dz / dz.shape[0]
         db = np.sum(dz, axis=0) / dz.shape[0]
@@ -139,60 +148,20 @@ class NN:
         pass  # TODO WRITE
 
 
-def simple_test():
-    nn = NN()
-    nn.init_params([2, 1], ['lin'], 'mse')
-    x = []
-    y = []
-    for i in range(1000):
-        a = random.random()
-        b = random.random()
-        c = a + b
-        x.append(([a, b]))
-        y.append([c])
-
-    x = np.array(x)
-    y = np.array(y)
-    nn.train(x, y)
-    a, _ = nn.forward_prop(x)
-    # print(a)
-    # print(y)
-
-    # print(a[0:10])
-    # print(y[0:10])
-    test = np.array([[0.1, 0.2]])
-    a, _ = nn.forward_prop(test)
-    print(a)
-
 
 def xor_test():
     nn = NN()
-    nn.init_params([2, 2, 1], ['sigmoid', 'sigmoid'], 'mse')
-    x = []
-    y = []
-    for i in range(1000):
-        r = random.random()
-        if r > 0.75:
-            x.append([0.5, 0.5])
-            y.append([0])
-        elif r > 0.5:
-            x.append([0.5, -0.5])
-            y.append([1])
-        elif r > 0.25:
-            x.append([-0.5, 0.5])
-            y.append([1])
-        else:
-            x.append([-0.5, -0.5])
-            y.append([0])
-    x = np.array(x)
-    y = np.array(y)
-    t = np.array([[-1, -1], [1, -1], [-1, 1], [1, 1]])
+    nn.init_params([2, 16, 1], ['sigmoid', 'sigmoid'], 'mse')
+    x = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+    y = np.array([[0], [1], [1], [0]])
 
-    a, _ = nn.forward_prop(t)
-    print('Pre train:\n', a)
+    a, _ = nn.forward_prop(x)
+    print('Pre train:', a)
+    print(nn.cost_func(a, y))
     nn.train(x, y)
-    a, _ = nn.forward_prop(t)
-    print('Post train:\n', a)
+    a, _ = nn.forward_prop(x)
+    print('Post train:', a)
+    print(nn.cost_func(a, y))
 
 
 def fixed_size_test():
@@ -213,12 +182,12 @@ def fixed_size_test():
     x = np.array([[0, 0, 1, 1], [0, 1, 0, 1]])
     # These are XOR outputs
     y = np.array([[0, 1, 1, 0]])
-    # 2 4 1
+    # 2 16 1
     w1 = np.random.randn(16, 2)
+    b1 = np.zeros((16, 1))
     # print(w1)
     w2 = np.random.randn(1, 16)
-    b1 = np.random.randn(16, 1)
-    b2 = np.random.randn(1, 1)
+    b2 = np.zeros((1, 1))
     for _ in range(100000):
         z1 = np.dot(w1, x) + b1
         a1 = sigmoid(z1)
@@ -252,7 +221,7 @@ def fixed_size_test():
 
 
 if __name__ == '__main__':
-    # simple_test()
-    # xor_test()
-    fixed_size_test()
+    np.random.seed(2)
+    xor_test()
+    # fixed_size_test()
     pass
