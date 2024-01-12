@@ -1,7 +1,5 @@
-import random
-
 import numpy as np
-
+from keras.datasets import mnist
 
 class NN:
     """
@@ -17,22 +15,32 @@ class NN:
         self.consts = []  # [consts0, consts1 ...]
         self.activ_funcs = []  # [func, ...]
         self.grad_table = {self.lin: self.lin_grad, self.relu: self.relu_grad, self.sigmoid: self.sigmoid_grad,
-                           self.tanh: self.tanh_grad, self.mse: self.mse_grad}
-        self.cost_func = self.mse
+                           self.tanh: self.tanh_grad, self.softmax:self.softmax_grad,
+                           self.cross_entropy:self.cross_entropy_grad, self.mse: self.mse_grad}
 
+        self.cost_func = lambda x, y: 0
+
+        self.hyperparams = {'alpha':0.01, 'epochs':100000, 'batch_size':-1}
         pass
 
-    def init_params(self, shape, activ_funcs, cost):  # TODO add default init hyperparams
+    def init_params(self, shape, activ_funcs, cost, **kwargs):  # TODO add default init hyperparams
         # shape is of format [<num params>, <l1_size>, <l2_size>, ... <output_size>] Of size 1 + num layers + 1
         # activ_funcs is of format ['<activ0>', '<activ1>' ...] Of size num layers
         # cost is 'mse' etc
-        activ_table = {'lin': self.lin, 'relu': self.relu, 'sigmoid': self.sigmoid, 'tanh': self.tanh, 'mse': self.mse}
-        self.cost = activ_table[cost]
+        activ_table = {'lin': self.lin, 'relu': self.relu, 'sigmoid': self.sigmoid, 'tanh': self.tanh,
+                       'softmax': self.softmax}
+        cost_table = {'mse': self.mse, 'cross_entropy': self.cross_entropy}
+        self.cost = cost_table[cost]
 
         for i in range(len(shape) - 1):
             self.layers.append(np.random.randn(shape[i], shape[i + 1]))
             self.consts.append(np.zeros((1, shape[i + 1])))
             self.activ_funcs.append(activ_table[activ_funcs[i]])
+
+        for k in kwargs:
+            self.hyperparams[k] = kwargs[k]
+
+
 
     def load_params(self, fd):
         '''
@@ -57,26 +65,28 @@ class NN:
 
         return a, cache
 
-    def train(self, train_data, actual, alpha=0.01, passes=100000):
+    def train(self, train_data, actual):
+        passes = self.hyperparams['epochs']
         for i in range(passes):
-            self.train_pass(train_data, actual, alpha=alpha)
+            self.train_pass(train_data, actual)
 
     '''
     x=a_0 -> z0 -> a1 -> z1 -> a2 = y 
     '''
-    def train_pass(self, train_data, actual, alpha):
+    def train_pass(self, train_data, actual):
         '''
         Computes one training pass
 
         '''
+        alpha = self.hyperparams['alpha']
         pred, cache = self.forward_prop(train_data)
         # print(self.mse(pred, actual))
         cost_grad = self.grad_table[self.cost]
-        da = pred-actual
+        da = cost_grad(pred, actual)
         # print('da: '+ str(da))
         # print('Cost: ' + str(self.cost(pred, actual)))
         for layer in range(len(self.layers) - 1, -1, -1):
-            dw, db, da = self.one_deriv(layer, len(self.layers) - 1, da, cache[layer])
+            dw, db, da = self.one_deriv(layer, da, cache[layer])
             # print(layer)
             # print('dw: ' + str(dw))
             # print('db: ' + str(db))
@@ -90,15 +100,15 @@ class NN:
     # dz1 = np.dot(w2.T, dz2) * a1 * (1.0 - a1)
     # dw1 = np.dot(dz1, x.T) / 4
     # db1 = np.sum(dz1, axis=1, keepdims=True) / 4
-    def one_deriv(self, i, layers, da_prev, cache_i):
+    def one_deriv(self, i, da_prev, cache_i):
         '''
         Computes the gradients of the weights and consts for layer i
         '''
         g_prime = self.grad_table[self.activ_funcs[i]]
-        if i != layers:
-            dz = da_prev * g_prime(cache_i[0])
-        else:
-            dz = da_prev
+        # if i != layers:
+        dz = da_prev * g_prime(cache_i[0])
+        # else:
+        #     dz = da_prev
         da = dz @ self.layers[i].T
         dw = cache_i[1].T @ dz / dz.shape[0]
         db = np.sum(dz, axis=0) / dz.shape[0]
@@ -108,7 +118,7 @@ class NN:
         return 1 / 2 * np.sum(np.square(pred - actual)) / actual.shape[0]
 
     def mse_grad(self, pred, actual):
-        return np.sum(pred - actual) / actual.shape[0]
+        return pred - actual
 
     def cross_entropy(self, pred, actual):
         # Cost Function
@@ -151,7 +161,7 @@ class NN:
 
 def xor_test():
     nn = NN()
-    nn.init_params([2, 16, 1], ['sigmoid', 'sigmoid'], 'mse')
+    nn.init_params([2, 8, 8, 1], ['tanh', 'tanh', 'softmax'], 'cross_entropy')
     x = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
     y = np.array([[0], [1], [1], [0]])
 
@@ -162,6 +172,23 @@ def xor_test():
     a, _ = nn.forward_prop(x)
     print('Post train:', a)
     print(nn.cost_func(a, y))
+
+
+def mnist_test():
+    (train_X, train_y), (test_X, test_y) = mnist.load_data()
+    print('X_train: ' + str(train_X.shape))
+    print('Y_train: ' + str(train_y.shape))
+    print('X_test:  ' + str(test_X.shape))
+    print('Y_test:  ' + str(test_y.shape))
+    train_X = train_X / 255.0
+    test_X = test_X / 255.0
+
+    img_size = train_X.shape[1] * train_X.shape[2]
+    output_size = 10
+
+    nn = NN()
+    nn.init_params([img_size, 16, 16, output_size], ['tanh', 'tanh', 'softmax'],
+                   'cross_entropy', alpha=0.01, epochs=10000)
 
 
 def fixed_size_test():
@@ -222,6 +249,7 @@ def fixed_size_test():
 
 if __name__ == '__main__':
     np.random.seed(2)
-    xor_test()
+    # xor_test()
     # fixed_size_test()
+    mnist_test()
     pass
