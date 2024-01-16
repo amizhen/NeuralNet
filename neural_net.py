@@ -123,7 +123,8 @@ class NN:
         return 1.0 / (1.0 + np.exp(-x))
 
     def sigmoid_grad(self, x):
-        return self.sigmoid(x) * (1.0 - self.sigmoid(x))
+        a = self.sigmoid(x)
+        return a * (1.0 - a)
 
     def relu(self, x):
         return np.maximum(0, x)
@@ -154,7 +155,8 @@ class NN:
         return tmp / np.sum(tmp)
 
     def softmax_grad(self, x):
-        return x * (np.eye(x.shape)-x.T)
+        a = self.softmax(x)
+        return (np.eye(x.shape[1]) - a.T) * x
 
 
 
@@ -180,16 +182,29 @@ def mnist_test():
     print('Y_train: ' + str(train_y.shape))
     print('X_test:  ' + str(test_X.shape))
     print('Y_test:  ' + str(test_y.shape))
-    train_X = train_X / 255.0
-    test_X = test_X / 255.0
 
     img_size = train_X.shape[1] * train_X.shape[2]
+    train_examples = train_X.shape[0]
+    test_examples = test_X.shape[0]
+
+    train_X = train_X/ 255.0
+    test_X = test_X / 255.0
+
+    train_y = np.eye(10)[train_y]
+    test_y = np.eye(10)[test_y]
+
+    train_X = train_X.reshape((train_examples, img_size))
+    test_X = test_X.reshape((test_examples, img_size))
+
+
+
+
     output_size = 10
 
     nn = NN()
     nn.init_params([img_size, 16, 16, output_size], ['tanh', 'tanh', 'softmax'],
                    'cross_entropy', alpha=0.01, epochs=10000)
-    
+
     nn.train(train_X, train_y)
     a, _ = nn.forward_prop(test_X)
     print('Post test:', nn.cost_func(a, test_y))
