@@ -107,14 +107,14 @@ class NN:
         return 1 / 2 * np.sum(np.square(pred - actual)) / actual.shape[0]
 
     def mse_grad(self, pred, actual):
-        return pred - actual
+        return (pred - actual) / actual.shape[0]
 
     def cross_entropy(self, pred, actual):
         # Cost Function
         return -1 / actual.shape[0] * np.sum(actual * np.log(pred) + (1 - actual) * np.log(1 - pred))
 
-    def cross_entropy_grad(self, pred):
-        return
+    def cross_entropy_grad(self, pred, actual):
+        return (-actual / pred + (1 - actual) / (1 - pred)) / pred.shape[0]
 
     def last_grad(self, x):
         return np.ones(x.shape)
@@ -130,6 +130,12 @@ class NN:
 
     def relu_grad(self, x):
         return (x > 0) * 1
+
+    def l_relu(self, x):
+        return np.vectorize(lambda i: i if i>0 else 0.01*i)(x)
+
+    def l_relu_grad(self, x):
+        return np.vectorize(lambda i: 1 if i>0 else 0.01)(x)
 
     def tanh(self, x):  # ALREADY DEFINED
         return np.tanh(x)
@@ -153,6 +159,7 @@ class NN:
 
 
 def xor_test():
+    np.random.seed(2)
     nn = NN()
     nn.init_params([2, 8, 8, 1], ['tanh', 'tanh', 'tanh'], 'mse')
     x = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
@@ -182,6 +189,10 @@ def mnist_test():
     nn = NN()
     nn.init_params([img_size, 16, 16, output_size], ['tanh', 'tanh', 'softmax'],
                    'cross_entropy', alpha=0.01, epochs=10000)
+    
+    nn.train(train_X, train_y)
+    a, _ = nn.forward_prop(test_X)
+    print('Post test:', nn.cost_func(a, test_y))
 
 
 def fixed_size_test():
@@ -241,8 +252,7 @@ def fixed_size_test():
 
 
 if __name__ == '__main__':
-    np.random.seed(2)
     # xor_test()
     # fixed_size_test()
-    # mnist_test()
+    mnist_test()
     pass
