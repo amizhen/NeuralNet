@@ -91,12 +91,6 @@ class NN:
             self.layers[layer] -= alpha * dw
             self.consts[layer] -= alpha * db
 
-    # dz2 = a2 - y
-    # dw2 = np.dot(dz2, a1.T) / 4
-    # db2 = np.sum(dz2, axis=1, keepdims=True) / 4
-    # dz1 = np.dot(w2.T, dz2) * a1 * (1.0 - a1)
-    # dw1 = np.dot(dz1, x.T) / 4
-    # db1 = np.sum(dz1, axis=1, keepdims=True) / 4
 
     def one_deriv(self, i, da_prev, cache_i):
         '''
@@ -135,7 +129,7 @@ class NN:
         return np.maximum(0, x)
 
     def relu_grad(self, x):
-        return np.vectorize(lambda x: 1 if x > 0 else 0)(x)
+        return (x > 0) * 1
 
     def tanh(self, x):  # ALREADY DEFINED
         return np.tanh(x)
@@ -248,7 +242,7 @@ def fixed_size_test():
 
 if __name__ == '__main__':
     np.random.seed(2)
-    xor_test()
+    # xor_test()
     # fixed_size_test()
     # mnist_test()
     pass
