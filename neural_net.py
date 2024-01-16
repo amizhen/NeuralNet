@@ -80,17 +80,14 @@ class NN:
         '''
         alpha = self.hyperparams['alpha']
         pred, cache = self.forward_prop(train_data)
-        # print(self.mse(pred, actual))
         cost_grad = self.grad_table[self.cost_func]
         da = cost_grad(pred, actual)
-        # print('da: '+ str(da))
-        # print('Cost: ' + str(self.cost(pred, actual)))
-        for layer in range(len(self.layers) - 1, -1, -1):
-            dw, db, da = self.one_deriv(layer, da, len(self.layers) - 1, cache[layer])
-            # print(layer)
-            # print('dw: ' + str(dw))
-            # print('db: ' + str(db))
-            # print('da: ' + str(da))
+
+
+        steps = len(self.layers) - 1
+        for layer in range(steps, -1, -1):
+            dw, db, da = self.one_deriv(layer, da, cache[layer])
+
             self.layers[layer] -= alpha * dw
             self.consts[layer] -= alpha * db
 
@@ -100,15 +97,13 @@ class NN:
     # dz1 = np.dot(w2.T, dz2) * a1 * (1.0 - a1)
     # dw1 = np.dot(dz1, x.T) / 4
     # db1 = np.sum(dz1, axis=1, keepdims=True) / 4
-    def one_deriv(self, i, da_prev, layers, cache_i):
+
+    def one_deriv(self, i, da_prev, cache_i):
         '''
         Computes the gradients of the weights and consts for layer i
         '''
         g_prime = self.grad_table[self.activ_funcs[i]]
-        if i != layers:
-            dz = da_prev * g_prime(cache_i[0])
-        else:
-            dz = da_prev
+        dz = da_prev * g_prime(cache_i[0])
         da = dz @ self.layers[i].T
         dw = cache_i[1].T @ dz / dz.shape[0]
         db = np.sum(dz, axis=0) / dz.shape[0]
@@ -126,6 +121,9 @@ class NN:
 
     def cross_entropy_grad(self, pred):
         return
+
+    def last_grad(self, x):
+        return np.ones(x.shape)
 
     def sigmoid(self, x):
         return 1.0 / (1.0 + np.exp(-x))
